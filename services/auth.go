@@ -14,8 +14,6 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-var jwtsecreet = []byte("j%CY~T0y?2z4EP(A>rlVC6}?bY?X>M")
-
 // ______________________ HASH Passwd part ______________________
 const (
 	saltLength = 16       // length of salt in bytes
@@ -56,12 +54,14 @@ func generateSalt(length int) ([]byte, error) {
 type AuthService struct {
 	AuthRepository *repositories.AuthRepository
 	logger         *slog.Logger
+	jwtsecreet     []byte
 }
 
-func NewAuthService(authRepo *repositories.AuthRepository, Logger *slog.Logger) *AuthService {
+func NewAuthService(authRepo *repositories.AuthRepository, Logger *slog.Logger, secreet string) *AuthService {
 	return &AuthService{
 		AuthRepository: authRepo,
 		logger:         Logger,
+		jwtsecreet:     []byte(secreet),
 	}
 }
 
@@ -113,7 +113,7 @@ func (au *AuthService) LoginUser(loginUser *models.LoginRequest, c *gin.Context)
 			"role":  user.Role,
 			"nbf":   time.Now().Add(24 * time.Hour).Unix(),
 		})
-		tokenString, err := token.SignedString(jwtsecreet)
+		tokenString, err := token.SignedString(au.jwtsecreet)
 
 		if err != nil {
 			return nil, err
