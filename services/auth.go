@@ -3,13 +3,13 @@ package services
 import (
 	"auth-service/models"
 	"auth-service/repositories"
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"errors"
 	"log/slog"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/argon2"
 )
@@ -65,7 +65,7 @@ func NewAuthService(authRepo *repositories.AuthRepository, Logger *slog.Logger, 
 	}
 }
 
-func (au *AuthService) RegisterUser(user *models.RegisterRequest, c *gin.Context) error {
+func (au *AuthService) RegisterUser(user *models.RegisterRequest, c context.Context) error {
 
 	if user.Password != user.PasswordConf {
 		return errors.New("The passwords do not match")
@@ -84,7 +84,7 @@ func (au *AuthService) RegisterUser(user *models.RegisterRequest, c *gin.Context
 	return nil
 }
 
-func (au *AuthService) GetUserByLogin(login string, c *gin.Context) (*models.User, error) {
+func (au *AuthService) GetUserByLogin(login string, c context.Context) (*models.User, error) {
 
 	user, err := au.AuthRepository.GetUserByLogin(login, c)
 
@@ -95,9 +95,10 @@ func (au *AuthService) GetUserByLogin(login string, c *gin.Context) (*models.Use
 	return user, nil
 }
 
-func (au *AuthService) LoginUser(loginUser *models.LoginRequest, c *gin.Context) (*string, error) {
+func (au *AuthService) LoginUser(loginUser *models.LoginRequest, c context.Context) (*string, error) {
 
 	// технически уже проверяет наличие пользователя в системе
+
 	user, err := au.GetUserByLogin(loginUser.Login, c)
 
 	if err != nil {

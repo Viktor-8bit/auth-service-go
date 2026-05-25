@@ -25,12 +25,14 @@ func (ae *AuthEndpoint) Login(c *gin.Context) {
 
 	var req *models.LoginRequest
 
+	ctx := c.Request.Context()
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неправильно заполнены поля формы"})
 		return
 	}
 
-	token, err := ae.authService.LoginUser(req, c)
+	token, err := ae.authService.LoginUser(req, ctx)
 
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": err.Error()})
@@ -42,20 +44,22 @@ func (ae *AuthEndpoint) Login(c *gin.Context) {
 func (ae *AuthEndpoint) Register(c *gin.Context) {
 	var req *models.RegisterRequest
 
+	ctx := c.Request.Context()
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Неправильно заполнены поля формы"})
 		return
 	}
 
 	// Проверяем наличие пользователя
-	user, err := ae.authService.GetUserByLogin(req.Login, c)
+	user, err := ae.authService.GetUserByLogin(req.Login, ctx)
 
 	if user != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Пользователь уже есть в базе"})
 		return
 	}
 
-	err = ae.authService.RegisterUser(req, c)
+	err = ae.authService.RegisterUser(req, ctx)
 
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

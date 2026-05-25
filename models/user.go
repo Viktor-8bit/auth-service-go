@@ -37,8 +37,8 @@ type UserResponse struct {
 
 //create table if not exists  Users(
 // 	user_name varchar(255) not null,
-// 	passwd_hash varchar(255) not null,
+// 	passwd_hash BYTEA NOT NULL,
 // 	role integer,
-// 	mail varchar(255)
-//  salt varchar(255) not null
+// 	mail varchar(255),
+//  salt BYTEA NOT NULL
 // );

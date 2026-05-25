@@ -3,9 +3,9 @@ package repositories
 import (
 	"auth-service/models"
 	"context"
+	"errors"
 	"log/slog"
 
-	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -33,29 +33,37 @@ func NewAuthRepository(connStr string, Logger *slog.Logger) *AuthRepository {
 	}
 }
 
-func (ar *AuthRepository) RegisterUser(user *models.User, c *gin.Context) error {
+func (ar *AuthRepository) RegisterUser(user *models.User, ctx context.Context) error {
 
-	_, err := ar.DbPool.Query(c, "INSERT INTO users (user_name, passwd_hash, role, mail, salt) VALUES ($1, $2, $3, $4, $5);", user.UserName, user.PasswordHash, user.Role, user.Mail, user.Salt)
+	_, err := ar.DbPool.Exec(ctx, "INSERT INTO users (user_name, passwd_hash, role, mail, salt) VALUES ($1, $2, $3, $4, $5);", user.UserName, user.PasswordHash, user.Role, user.Mail, user.Salt)
 
 	if err != nil {
-		return err
+		ar.logger.Error(err.Error())
+		return errors.New("Ошибка")
 	}
 
 	return nil
 }
 
-func (ar *AuthRepository) GetUserByLogin(login string, c *gin.Context) (*models.User, error) {
+func (ar *AuthRepository) GetUserByLogin(login string, ctx context.Context) (*models.User, error) {
 
-	rows, err := ar.DbPool.Query(c, "select * from users where user_name=$1", login)
+	rows, err := ar.DbPool.Query(ctx, "select * from users where user_name=$1", login)
 
 	if err != nil {
-		return nil, err
+		ar.logger.Error(err.Error())
+		return nil, errors.New("Ошибка")
 	}
 
 	searchedLogin, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.User])
 
 	if err != nil {
-		return nil, err
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errors.New("Пользователь не найден")
+		}
+
+		ar.logger.Error(err.Error())
+		return nil, errors.New("Ошибка")
 	}
 
 	return &searchedLogin, nil
