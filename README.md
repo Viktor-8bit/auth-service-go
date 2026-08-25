@@ -1,5 +1,5 @@
 
-### auth-service-go
+## auth-service-go
 
 Микросервис на go для создания jwt refresh & access токенов
 
@@ -45,7 +45,7 @@ Foreign-key constraints:
     REFERENCES users(id) ON DELETE CASCADE
 ```
 
-## Auth API
+### Auth API
 
 | Метод | Endpoint | Описание |
 |---|---|---|
