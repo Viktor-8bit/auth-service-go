@@ -23,17 +23,19 @@ func main() {
 
 	// load envs
 	DBConnect, _ := os.LookupEnv("DBConnect")
-	JWTToken, _ := os.LookupEnv("JWTToken")
+	JWTRefresh, _ := os.LookupEnv("JWTRefresh")
+	JWTAccessToken, _ := os.LookupEnv("JWTAccessToken")
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	r := gin.Default()
 
 	authRepository := repositories.NewAuthRepository(DBConnect, logger)
 
-	authService := services.NewAuthService(authRepository, logger, JWTToken)
+	authService := services.NewAuthService(authRepository, logger, JWTRefresh, JWTAccessToken)
 	authEndpoint := endpoints.NewAuthEndpoint(authService, logger)
 
 	r.POST("/login", authEndpoint.Login)
 	r.POST("/register", authEndpoint.Register)
+	r.POST("/getaccesstoken", authEndpoint.GetAccessToken)
 	r.Run()
 }

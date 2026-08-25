@@ -40,5 +40,6 @@ type UserResponse struct {
 // 	passwd_hash BYTEA NOT NULL,
 // 	role integer,
 // 	mail varchar(255),
-//  salt BYTEA NOT NULL
+//  salt BYTEA NOT NULL,
+//	UNIQUE(user_name)
 // );

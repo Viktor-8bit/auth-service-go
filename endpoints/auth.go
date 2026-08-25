@@ -37,7 +37,7 @@ func (ae *AuthEndpoint) Login(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusForbidden, gin.H{"status": err.Error()})
 	} else {
-		c.JSON(http.StatusOK, gin.H{"token": token})
+		c.JSON(http.StatusOK, gin.H{"refreshtoken": token})
 	}
 }
 
@@ -68,4 +68,25 @@ func (ae *AuthEndpoint) Register(c *gin.Context) {
 		c.JSON(http.StatusAccepted, gin.H{"status": "Ok"})
 	}
 
+}
+
+func (ae *AuthEndpoint) GetAccessToken(c *gin.Context) {
+
+	ctx := c.Request.Context()
+
+	var jwtrefresh models.JWTRefreshRequest
+
+	if err := c.ShouldBindJSON(&jwtrefresh); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Неправильно заполнены поля формы"})
+		return
+	}
+
+	resp, err := ae.authService.GetAccessToken(jwtrefresh.JwtRefresh, ctx)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{"accesstoken": resp})
 }
