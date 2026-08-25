@@ -53,14 +53,16 @@ func generateSalt(length int) ([]byte, error) {
 
 type AuthService struct {
 	AuthRepository *repositories.AuthRepository
+	RefreshService *RefreshService
 	logger         *slog.Logger
 	jwtrefresh     []byte
 	jwtaccess      []byte
 }
 
-func NewAuthService(authRepo *repositories.AuthRepository, Logger *slog.Logger, jwtrefresh string, jwtaccess string) *AuthService {
+func NewAuthService(authRepo *repositories.AuthRepository, refreshServ *RefreshService, Logger *slog.Logger, jwtrefresh string, jwtaccess string) *AuthService {
 	return &AuthService{
 		AuthRepository: authRepo,
+		RefreshService: refreshServ,
 		logger:         Logger,
 		jwtrefresh:     []byte(jwtrefresh),
 		jwtaccess:      []byte(jwtaccess),
@@ -111,12 +113,29 @@ func (au *AuthService) LoginUser(loginUser *models.LoginRequest, c context.Conte
 	res := verifyPassword(loginUser.Password, user.Salt, user.PasswordHash)
 
 	claim := models.RefreshClaim{
-		Login: *user.UserName,
-		Type:  models.JwtRefreshType,
+		Login:     *user.UserName,
+		Type:      models.JwtRefreshType,
+		RefreshId: nil,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().AddDate(0, 1, 0)),
 		},
+	}
+
+	err, id := au.RefreshService.LogRefreshToeken(
+		&models.RefreshToken{
+			JTI:       nil,
+			UserID:    int(user.Id),
+			IAT:       claim.IssuedAt.Time,
+			EXP:       claim.ExpiresAt.Time,
+			RevokedAt: nil,
+			CreatedAt: time.Now(),
+		}, c)
+
+	claim.RefreshId = id
+
+	if err != nil {
+		au.logger.Debug(err.Error())
 	}
 
 	if res == true {

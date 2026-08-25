@@ -17,8 +17,9 @@ type JWTRefreshRequest struct {
 
 type RefreshClaim struct {
 	jwt.RegisteredClaims
-	Login string
-	Type  JwtType
+	Login     string
+	Type      JwtType
+	RefreshId *int
 }
 
 type AccessClaim struct {
