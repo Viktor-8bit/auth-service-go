@@ -20,6 +20,17 @@ func NewRefreshService(refreshRepo *repositories.RefreshRepository, logger *slog
 	}
 }
 
+func (re *RefreshService) GetLogByTokenId(id *int, c context.Context) (error, *models.RefreshToken) {
+
+	err, refreshToken := re.RefreshRepository.GetLogByTokenId(id, c)
+
+	if err != nil {
+		return err, nil
+	}
+
+	return nil, refreshToken
+}
+
 func (re *RefreshService) LogRefreshToeken(refToken *models.RefreshToken, c context.Context) (error, *int) {
 
 	err, id := re.RefreshRepository.LogNewRefreshToken(refToken, c)

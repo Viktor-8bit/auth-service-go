@@ -187,6 +187,17 @@ func (au *AuthService) GetAccessToken(jwtrefresh string, c context.Context) (*st
 		return nil, errors.New("problem with user")
 	}
 
+	err, refreshTokenLog := au.RefreshService.GetLogByTokenId(claims.RefreshId, c)
+
+	if refreshTokenLog == nil {
+		return nil, errors.New("token not in database")
+	}
+
+	if refreshTokenLog.RevokedAt == nil {
+	} else if refreshTokenLog.RevokedAt.Unix() < time.Now().Unix() {
+		return nil, errors.New("token revoked")
+	}
+
 	claim := models.AccessClaim{
 		Login:  claims.Login,
 		Type:   models.JwtAccessType,
@@ -198,7 +209,6 @@ func (au *AuthService) GetAccessToken(jwtrefresh string, c context.Context) (*st
 	}
 
 	refreshtoken := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
-
 	refreshtokenString, err := refreshtoken.SignedString(au.jwtaccess)
 
 	return &refreshtokenString, nil

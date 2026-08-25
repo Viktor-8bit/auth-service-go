@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,6 +21,30 @@ func NewRefreshRepository(DbPool *pgxpool.Pool, Logger *slog.Logger) *RefreshRep
 		DbPool: DbPool,
 		logger: Logger,
 	}
+}
+
+func (re *RefreshRepository) GetLogByTokenId(id *int, c context.Context) (error, *models.RefreshToken) {
+
+	rows, err := re.DbPool.Query(c, "select * from refreshtokens where jti=$1;", id)
+
+	if err != nil {
+		re.logger.Error(err.Error())
+		return errors.New("Ошибка"), nil
+	}
+
+	searchedRefreshToken, err := pgx.CollectOneRow(rows, pgx.RowToStructByName[models.RefreshToken])
+
+	if err != nil {
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errors.New("Токен не найден"), nil
+		}
+
+		re.logger.Error(err.Error())
+		return errors.New("Ошибка"), nil
+	}
+
+	return nil, &searchedRefreshToken
 }
 
 func (re *RefreshRepository) LogNewRefreshToken(refToken *models.RefreshToken, c context.Context) (error, *int) {
