@@ -53,15 +53,19 @@ func generateSalt(length int) ([]byte, error) {
 
 type AuthService struct {
 	AuthRepository *repositories.AuthRepository
+	RefreshService *RefreshService
 	logger         *slog.Logger
-	jwtsecreet     []byte
+	jwtrefresh     []byte
+	jwtaccess      []byte
 }
 
-func NewAuthService(authRepo *repositories.AuthRepository, Logger *slog.Logger, secreet string) *AuthService {
+func NewAuthService(authRepo *repositories.AuthRepository, refreshServ *RefreshService, Logger *slog.Logger, jwtrefresh string, jwtaccess string) *AuthService {
 	return &AuthService{
 		AuthRepository: authRepo,
+		RefreshService: refreshServ,
 		logger:         Logger,
-		jwtsecreet:     []byte(secreet),
+		jwtrefresh:     []byte(jwtrefresh),
+		jwtaccess:      []byte(jwtaccess),
 	}
 }
 
@@ -95,6 +99,7 @@ func (au *AuthService) GetUserByLogin(login string, c context.Context) (*models.
 	return user, nil
 }
 
+// отправит refresh токен на месяц
 func (au *AuthService) LoginUser(loginUser *models.LoginRequest, c context.Context) (*string, error) {
 
 	// технически уже проверяет наличие пользователя в системе
@@ -107,14 +112,36 @@ func (au *AuthService) LoginUser(loginUser *models.LoginRequest, c context.Conte
 
 	res := verifyPassword(loginUser.Password, user.Salt, user.PasswordHash)
 
+	claim := models.RefreshClaim{
+		Login:     *user.UserName,
+		Type:      models.JwtRefreshType,
+		RefreshId: nil,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().AddDate(0, 1, 0)),
+		},
+	}
+
+	err, id := au.RefreshService.LogRefreshToeken(
+		&models.RefreshToken{
+			JTI:       nil,
+			UserID:    int(user.Id),
+			IAT:       claim.IssuedAt.Time,
+			EXP:       claim.ExpiresAt.Time,
+			RevokedAt: nil,
+			CreatedAt: time.Now(),
+		}, c)
+
+	claim.RefreshId = id
+
+	if err != nil {
+		au.logger.Debug(err.Error())
+	}
+
 	if res == true {
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"login": user.UserName,
-			"mail":  user.Mail,
-			"role":  user.Role,
-			"nbf":   time.Now().Add(24 * time.Hour).Unix(),
-		})
-		tokenString, err := token.SignedString(au.jwtsecreet)
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
+
+		tokenString, err := token.SignedString(au.jwtrefresh)
 
 		if err != nil {
 			return nil, err
@@ -124,4 +151,65 @@ func (au *AuthService) LoginUser(loginUser *models.LoginRequest, c context.Conte
 	}
 
 	return nil, errors.New("неверный пароль")
+}
+
+func (au *AuthService) GetAccessToken(jwtrefresh string, c context.Context) (*string, error) {
+
+	claims := &models.RefreshClaim{}
+
+	token, err := jwt.ParseWithClaims(
+		jwtrefresh,
+		claims,
+		func(token *jwt.Token) (any, error) {
+			if token.Method != jwt.SigningMethodHS256 {
+				return nil, errors.New("unexpected signing method")
+			}
+
+			return []byte(au.jwtrefresh), nil
+		},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if !token.Valid || claims.Type != models.JwtRefreshType {
+		return nil, errors.New("invalid token")
+	}
+
+	if claims.RegisteredClaims.ExpiresAt.Unix() < time.Now().Unix() {
+		return nil, errors.New("token expiret")
+	}
+
+	user, err := au.GetUserByLogin(claims.Login, c)
+
+	if err != nil {
+		return nil, errors.New("problem with user")
+	}
+
+	err, refreshTokenLog := au.RefreshService.GetLogByTokenId(claims.RefreshId, c)
+
+	if refreshTokenLog == nil {
+		return nil, errors.New("token not in database")
+	}
+
+	if refreshTokenLog.RevokedAt == nil {
+	} else if refreshTokenLog.RevokedAt.Unix() < time.Now().Unix() {
+		return nil, errors.New("token revoked")
+	}
+
+	claim := models.AccessClaim{
+		Login:  claims.Login,
+		Type:   models.JwtAccessType,
+		RoleId: user.Role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(5 * time.Minute)),
+		},
+	}
+
+	refreshtoken := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
+	refreshtokenString, err := refreshtoken.SignedString(au.jwtaccess)
+
+	return &refreshtokenString, nil
 }

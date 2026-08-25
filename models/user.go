@@ -1,6 +1,7 @@
 package models
 
 type User struct {
+	Id           int64   `db:"id"`
 	UserName     *string `db:"user_name"`
 	Role         int     `db:"role"`
 	Mail         *string `db:"mail"`
@@ -36,9 +37,12 @@ type UserResponse struct {
 }
 
 //create table if not exists  Users(
+// 	id BIGSERIAL PRIMARY KEY
 // 	user_name varchar(255) not null,
 // 	passwd_hash BYTEA NOT NULL,
 // 	role integer,
 // 	mail varchar(255),
-//  salt BYTEA NOT NULL
+//  salt BYTEA NOT NULL,
+//	UNIQUE(user_name),
+//	UNIQUE(mail)
 // );

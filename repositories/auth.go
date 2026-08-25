@@ -15,20 +15,10 @@ type AuthRepository struct {
 	logger *slog.Logger
 }
 
-func NewAuthRepository(connStr string, Logger *slog.Logger) *AuthRepository {
-
-	dbpool, err := pgxpool.New(context.Background(), connStr)
-
-	if err != nil {
-		Logger.Error("Ошибка подключения", "error", err)
-	} else {
-		Logger.Info("Успешное подключние")
-	}
-
-	// defer dbpool.Close()
+func NewAuthRepository(DbPool *pgxpool.Pool, Logger *slog.Logger) *AuthRepository {
 
 	return &AuthRepository{
-		DbPool: dbpool,
+		DbPool: DbPool,
 		logger: Logger,
 	}
 }
